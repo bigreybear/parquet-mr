@@ -216,7 +216,7 @@
         <artifactId>thrift-maven-plugin</artifactId>
         <version>${thrift-maven-plugin.version}</version>
         <configuration>
-          <thriftExecutable>${thrift.executable}</thriftExecutable>
+          <thriftExecutable>${thrift.iotdb}</thriftExecutable>
         </configuration>
         <executions>
           <execution>

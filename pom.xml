@@ -114,6 +114,10 @@
     <!-- Resource intesive tests are enabled by default but disabled in the CI envrionment -->
     <enableResourceIntensiveTests>true</enableResourceIntensiveTests>
 
+    <iotdb-tools-thrift.version>0.14.1.0</iotdb-tools-thrift.version>
+    <os.classifier></os.classifier>
+    <thrift.iotdb>${project.build.directory}/thrift/bin/${thrift.executable}</thrift.iotdb>
+
     <extraJavaTestArgs>
       -XX:+IgnoreUnrecognizedVMOptions
       --add-opens=java.base/java.lang=ALL-UNNAMED
@@ -371,6 +375,32 @@
       </plugins>
     </pluginManagement>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>get-thrift</id>
+            <goals>
+              <goal>unpack</goal>
+            </goals>
+            <phase>initialize</phase>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>org.apache.iotdb.tools</groupId>
+                  <artifactId>iotdb-tools-thrift</artifactId>
+                  <version>${iotdb-tools-thrift.version}</version>
+                  <classifier>${os.classifier}</classifier>
+                  <type>zip</type>
+                  <overWrite>true</overWrite>
+                  <outputDirectory>${project.build.directory}/thrift</outputDirectory>
+                </artifactItem>
+              </artifactItems>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
@@ -749,6 +779,100 @@
         <module>parquet-plugins/parquet-encoding-vector</module>
         <module>parquet-plugins/parquet-plugins-benchmarks</module>
       </modules>
+    </profile>
+
+
+    <!--
+  A set of profiles defining the different properties needed to download and run thrift
+  They are automatically activated depending on the OS you are using.
+-->
+    <profile>
+      <id>.os-unix</id>
+      <activation>
+        <os>
+          <name>Linux</name>
+          <family>unix</family>
+          <arch>!aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <cmake.generator>Unix Makefiles</cmake.generator>
+        <os.classifier>linux-x86_64</os.classifier>
+        <thrift.executable>thrift</thrift.executable>
+      </properties>
+    </profile>
+    <profile>
+      <id>.os-unix-arm</id>
+      <activation>
+        <os>
+          <name>Linux</name>
+          <family>unix</family>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <cmake.generator>Unix Makefiles</cmake.generator>
+        <os.classifier>linux-aarch64</os.classifier>
+        <thrift.executable>thrift</thrift.executable>
+      </properties>
+    </profile>
+    <profile>
+      <id>.os-mac</id>
+      <activation>
+        <os>
+          <family>mac</family>
+          <arch>!aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <boost.include.dir>/usr/local/include</boost.include.dir>
+        <cmake.generator>Unix Makefiles</cmake.generator>
+        <os.classifier>mac-x86_64</os.classifier>
+        <thrift.executable>thrift</thrift.executable>
+      </properties>
+    </profile>
+    <profile>
+      <id>.os-mac-arm</id>
+      <activation>
+        <os>
+          <family>mac</family>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <boost.include.dir>/opt/homebrew/opt/boost/include</boost.include.dir>
+        <cmake.generator>Unix Makefiles</cmake.generator>
+        <os.classifier>mac-aarch64</os.classifier>
+        <thrift.executable>thrift</thrift.executable>
+      </properties>
+    </profile>
+    <profile>
+      <id>.os-windows</id>
+      <activation>
+        <os>
+          <family>windows</family>
+          <arch>!aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <cmake.generator>Visual Studio 17 2022</cmake.generator>
+        <os.classifier>windows-x86_64</os.classifier>
+        <thrift.executable>Release/thrift.exe</thrift.executable>
+      </properties>
+    </profile>
+    <profile>
+      <id>.os-windows-arm</id>
+      <activation>
+        <os>
+          <family>windows</family>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <cmake.generator>Visual Studio 17 2022</cmake.generator>
+        <os.classifier>windows-aarch64</os.classifier>
+        <thrift.executable>Release/thrift.exe</thrift.executable>
+      </properties>
     </profile>
   </profiles>
 </project>

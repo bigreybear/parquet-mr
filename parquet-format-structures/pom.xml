@@ -73,7 +73,7 @@
         <version>${thrift-maven-plugin.version}</version>
         <configuration>
           <thriftSourceRoot>${parquet.thrift.path}</thriftSourceRoot>
-          <thriftExecutable>${format.thrift.executable}</thriftExecutable>
+          <thriftExecutable>${thrift.iotdb}</thriftExecutable>
         </configuration>
         <executions>
           <execution>
@@ -204,6 +204,35 @@
           </plugin>
         </plugins>
       </build>
+    </profile>
+
+    <profile>
+      <id>.os-windows</id>
+      <activation>
+        <os>
+          <family>windows</family>
+          <arch>!aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <cmake.generator>Visual Studio 17 2022</cmake.generator>
+        <os.classifier>windows-x86_64</os.classifier>
+        <thrift.executable>Release/thrift.exe</thrift.executable>
+      </properties>
+    </profile>
+    <profile>
+      <id>.os-windows-arm</id>
+      <activation>
+        <os>
+          <family>windows</family>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <cmake.generator>Visual Studio 17 2022</cmake.generator>
+        <os.classifier>windows-aarch64</os.classifier>
+        <thrift.executable>Release/thrift.exe</thrift.executable>
+      </properties>
     </profile>
   </profiles>
 </project>
