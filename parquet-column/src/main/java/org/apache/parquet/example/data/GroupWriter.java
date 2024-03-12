@@ -47,7 +47,9 @@ public class GroupWriter {
         String fieldName = fieldType.getName();
         recordConsumer.startField(fieldName, field);
         for (int index = 0; index < valueCount; ++index) {
+          // NOTE recursive if complex data type exists
           if (fieldType.isPrimitive()) {
+            // NOTE recordConsumer holds ColumnWriterBase which actually writes data into buffer
             group.writeValue(field, index, recordConsumer);
           } else {
             recordConsumer.startGroup();

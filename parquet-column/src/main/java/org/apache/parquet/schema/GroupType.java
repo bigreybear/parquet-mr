@@ -326,9 +326,13 @@ public class GroupType extends Type {
 
   @Override
   protected List<String[]> getPaths(int depth) {
+    // NOTE depth for current depth of the fields
     List<String[]> result = new ArrayList<>();
     for (Type field : fields) {
+      // NOTE primitive types create a singleton list holds a string array with depth as its length
       List<String[]> paths = field.getPaths(depth + 1);
+      // NOTE paths for single field is counterintuitive but its for group type
+      // NOTE as for group types, this fields presents on all paths at same depth
       for (String[] path : paths) {
         path[depth] = field.getName();
         result.add(path);

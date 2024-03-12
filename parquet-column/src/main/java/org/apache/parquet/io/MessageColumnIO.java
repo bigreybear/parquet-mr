@@ -175,6 +175,8 @@ public class MessageColumnIO extends GroupColumnIO {
    * being flushed is correct.
    */
   private class MessageColumnIORecordConsumer extends RecordConsumer {
+    // NOTE it's the main RecordConsumer, with no logging and validation
+    // NOTE it's a inner class of MessageColumnIO, so it can always access ColumnIOs through MessageColumnIO.this
     private ColumnIO currentColumnIO;
     private int currentLevel = 0;
 
@@ -275,6 +277,7 @@ public class MessageColumnIO extends GroupColumnIO {
     @Override
     public void startMessage() {
       if (DEBUG) log("< MESSAGE START >");
+      // NOTE when this start writing, this field holds outer class instance.
       currentColumnIO = MessageColumnIO.this;
       r[0] = 0;
       int numberOfFieldsToVisit = ((GroupColumnIO) currentColumnIO).getChildrenCount();
@@ -301,6 +304,7 @@ public class MessageColumnIO extends GroupColumnIO {
     public void startField(String field, int index) {
       try {
         if (DEBUG) log("startField({}, {})", field, index);
+        // NOTE
         currentColumnIO = ((GroupColumnIO) currentColumnIO).getChild(index);
         emptyField = true;
         if (DEBUG) printState();
@@ -436,6 +440,7 @@ public class MessageColumnIO extends GroupColumnIO {
     public void addInteger(int value) {
       if (DEBUG) log("addInt({})", value);
       emptyField = false;
+      // NOTE actual method to manipulate ColumnWriter
       getColumnWriter().write(value, r[currentLevel], currentColumnIO.getDefinitionLevel());
 
       setRepetitionLevel();

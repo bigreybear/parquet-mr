@@ -35,6 +35,7 @@ public class RunLengthBitPackingHybridValuesWriter extends ValuesWriter {
   }
 
   protected RunLengthBitPackingHybridValuesWriter(RunLengthBitPackingHybridEncoder encoder) {
+    // NOTE how I traced here: ColumnWriterBase instantiates ValuesWriter(s) and DL/RL is of this class
     this.encoder = Objects.requireNonNull(encoder);
   }
 

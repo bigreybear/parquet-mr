@@ -1420,7 +1420,7 @@ public class Types {
   }
 
   public static class MessageTypeBuilder extends GroupBuilder<MessageType> {
-    private MessageTypeBuilder() {
+    public MessageTypeBuilder() {
       super(MessageType.class);
       repetition(Type.Repetition.REQUIRED);
     }

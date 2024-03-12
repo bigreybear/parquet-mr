@@ -18,6 +18,7 @@
  */
 package org.apache.parquet.hadoop;
 
+import java.io.BufferedWriter;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.HashMap;
@@ -387,9 +388,10 @@ public class ParquetWriter<T> implements Closeable {
     // attached.
     if (encryptionProperties == null) {
       String path = file == null ? null : file.getPath();
-      Configuration hadoopConf = ConfigurationUtil.createHadoopConfiguration(conf);
-      encryptionProperties = ParquetOutputFormat.createEncryptionProperties(
-          hadoopConf, path == null ? null : new Path(path), writeContext);
+      // Configuration hadoopConf = ConfigurationUtil.createHadoopConfiguration(conf);
+      // encryptionProperties = ParquetOutputFormat.createEncryptionProperties(
+      //     hadoopConf, path == null ? null : new Path(path), writeContext);
+      encryptionProperties = null;
     }
 
     ParquetFileWriter fileWriter = new ParquetFileWriter(
@@ -449,6 +451,10 @@ public class ParquetWriter<T> implements Closeable {
       // release after the writer closes in case it is used for a last flush
       codecFactory.release();
     }
+  }
+
+  public void report(BufferedWriter bw) throws IOException {
+    writer.report(bw);
   }
 
   /**

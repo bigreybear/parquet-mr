@@ -49,6 +49,7 @@ abstract class ColumnWriterBase implements ColumnWriter {
 
   final ColumnDescriptor path;
   final PageWriter pageWriter;
+  // NOTE difference from PageWriter: holds 3 ValuesWriter for the column
   private ValuesWriter repetitionLevelColumn;
   private ValuesWriter definitionLevelColumn;
   private ValuesWriter dataColumn;
@@ -270,6 +271,7 @@ abstract class ColumnWriterBase implements ColumnWriter {
     if (DEBUG) log(value, repetitionLevel, definitionLevel);
     repetitionLevel(repetitionLevel);
     definitionLevel(definitionLevel);
+    // NOTE fundamental methods to write data into buffer
     dataColumn.writeInteger(value);
     statistics.updateStats(value);
     updateBloomFilter(value);

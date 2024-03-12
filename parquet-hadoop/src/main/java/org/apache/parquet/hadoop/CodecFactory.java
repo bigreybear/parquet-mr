@@ -161,7 +161,7 @@ public class CodecFactory implements CompressionCodecFactory {
   /**
    * Encapsulates the logic around hadoop compression
    */
-  class HeapBytesCompressor extends BytesCompressor {
+  public class HeapBytesCompressor extends BytesCompressor {
 
     private final CompressionCodec codec;
     private final Compressor compressor;

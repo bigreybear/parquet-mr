@@ -1170,6 +1170,7 @@ public class ParquetFileWriter {
     state = state.endColumn();
     LOG.debug("{}: end column", out.getPos());
     if (columnIndexBuilder.getMinMaxSize() > columnIndexBuilder.getPageCount() * MAX_STATS_SIZE) {
+      // NOTE too large to write?
       currentColumnIndexes.add(null);
     } else {
       currentColumnIndexes.add(columnIndexBuilder.build());
@@ -1440,13 +1441,22 @@ public class ParquetFileWriter {
    */
   public void end(Map<String, String> extraMetaData) throws IOException {
     state = state.end();
+    flushIndexTime = System.nanoTime();
     serializeColumnIndexes(columnIndexes, blocks, out, fileEncryptor);
     serializeOffsetIndexes(offsetIndexes, blocks, out, fileEncryptor);
     serializeBloomFilters(bloomFilters, blocks, out, fileEncryptor);
     LOG.debug("{}: end", out.getPos());
     this.footer = new ParquetMetadata(new FileMetaData(schema, extraMetaData, Version.FULL_VERSION), blocks);
     serializeFooter(footer, out, fileEncryptor, metadataConverter);
+    out.force();
+    flushIndexTime = System.nanoTime() - flushIndexTime;
     out.close();
+  }
+
+  private long flushIndexTime;
+
+  public long reportFlushIndextime() {
+    return flushIndexTime;
   }
 
   private static void serializeColumnIndexes(

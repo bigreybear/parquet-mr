@@ -51,10 +51,15 @@ public class ColumnIOFactory {
       this.strictTypeChecking = strictTypeChecking;
     }
 
+    /**
+     * NOTE messageType as element, prepare columnIO as target/result
+     */
     @Override
     public void visit(MessageType messageType) {
       columnIO = new MessageColumnIO(requestedSchema, validating, createdBy);
+      // NOTE messageType is passed as its superclass GroupType
       visitChildren(columnIO, messageType, requestedSchema);
+      // NOTE columnIO is padded through visit action above
       columnIO.setLevels();
       columnIO.setLeaves(leaves);
     }
@@ -66,9 +71,11 @@ public class ColumnIOFactory {
       }
       GroupColumnIO newIO = new GroupColumnIO(groupType, current, currentRequestedIndex);
       current.add(newIO);
+      // NOTE recursion for nested type
       visitChildren(newIO, groupType, currentRequestedType.asGroupType());
     }
 
+    // NOTE could be recursively called within visit(GroupType)
     private void visitChildren(GroupColumnIO newIO, GroupType groupType, GroupType requestedGroupType) {
       GroupColumnIO oldIO = current;
       current = newIO;
@@ -77,9 +84,14 @@ public class ColumnIOFactory {
         if (requestedGroupType.containsField(type.getName())) {
           currentRequestedIndex = requestedGroupType.getFieldIndex(type.getName());
           currentRequestedType = requestedGroupType.getType(currentRequestedIndex);
+          // NOTE check restrictiveness: Required > Optional > Repeated
           if (currentRequestedType.getRepetition().isMoreRestrictiveThan(type.getRepetition())) {
+            // if current type is more restrictive than type from groupType,
+            //  means an optional should be now required,  which could throw exception.
             incompatibleSchema(type, currentRequestedType);
           }
+          // NOTE this accept only do visit methods
+          // NOTE visit action is one of above or below method, depending on type.class
           type.accept(this);
         }
       }
@@ -94,6 +106,7 @@ public class ColumnIOFactory {
                   != primitiveType.getPrimitiveTypeName())) {
         incompatibleSchema(primitiveType, currentRequestedType);
       }
+      // NOTE create new IO which holds its parent
       PrimitiveColumnIO newIO =
           new PrimitiveColumnIO(primitiveType, current, currentRequestedIndex, leaves.size());
       current.add(newIO);
@@ -164,7 +177,9 @@ public class ColumnIOFactory {
    */
   public MessageColumnIO getColumnIO(MessageType requestedSchema, MessageType fileSchema, boolean strict) {
     ColumnIOCreatorVisitor visitor = new ColumnIOCreatorVisitor(validating, requestedSchema, createdBy, strict);
+    // NOTE entry of the VisitorPattern interaction
     fileSchema.accept(visitor);
+    // NOTE process above prepared columnIO in visitor for returning
     return visitor.getColumnIO();
   }
 

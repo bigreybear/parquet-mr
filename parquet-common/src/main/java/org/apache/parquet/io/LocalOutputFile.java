@@ -19,7 +19,10 @@
 package org.apache.parquet.io;
 
 import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -32,11 +35,24 @@ public class LocalOutputFile implements OutputFile {
 
   private class LocalPositionOutputStream extends PositionOutputStream {
 
+    private final FileOutputStream fos;
     private final BufferedOutputStream stream;
     private long pos = 0;
 
     public LocalPositionOutputStream(int buffer, StandardOpenOption... openOption) throws IOException {
-      stream = new BufferedOutputStream(Files.newOutputStream(path, openOption), buffer);
+      // original
+      // stream = new BufferedOutputStream(Files.newOutputStream(path, openOption), buffer);
+
+      fos = new FileOutputStream(path.toFile());
+      // fos = new FileOutputStream(String.valueOf(path));
+      // fos.
+      stream = new BufferedOutputStream(fos, buffer);
+    }
+
+    @Override
+    public void force() throws IOException {
+      stream.flush();
+      fos.getFD().sync();
     }
 
     @Override

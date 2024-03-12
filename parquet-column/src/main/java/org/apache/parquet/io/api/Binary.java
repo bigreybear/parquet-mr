@@ -237,7 +237,7 @@ public abstract class Binary implements Comparable<Binary>, Serializable {
     }
   }
 
-  private static class FromStringBinary extends ByteBufferBackedBinary {
+  public static class FromStringBinary extends ByteBufferBackedBinary {
     public FromStringBinary(String value) {
       // reused is false, because we do not hold on to the buffer after
       // conversion, and nobody else has a handle to it

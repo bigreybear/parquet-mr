@@ -51,7 +51,7 @@ public class DefaultV2ValuesWriterFactory implements ValuesWriterFactory {
   }
 
   @Override
-  public ValuesWriter newValuesWriter(ColumnDescriptor descriptor) {
+  public ValuesWriter   newValuesWriter(ColumnDescriptor descriptor) {
     switch (descriptor.getType()) {
       case BOOLEAN:
         return getBooleanValuesWriter();

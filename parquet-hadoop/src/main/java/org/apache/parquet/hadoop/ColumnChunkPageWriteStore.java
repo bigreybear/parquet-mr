@@ -545,6 +545,7 @@ public class ColumnChunkPageWriteStore implements PageWriteStore, BloomFilterWri
     }
   }
 
+  // NOTE following 2 methods implements both BFWriteStore and PageWriteStore
   @Override
   public PageWriter getPageWriter(ColumnDescriptor path) {
     return writers.get(path);

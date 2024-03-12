@@ -21,6 +21,7 @@ package org.apache.parquet.hadoop;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,6 +41,11 @@ import org.apache.parquet.schema.MessageType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * NOTE From UML, it holds many crucial class instance.
+ * NOTE directly controlled/called by {@link ParquetWriter}
+ * @param <T>
+ */
 class InternalParquetRecordWriter<T> {
   private static final Logger LOG = LoggerFactory.getLogger(InternalParquetRecordWriter.class);
 
@@ -106,6 +112,7 @@ class InternalParquetRecordWriter<T> {
   }
 
   private void initStore() {
+    // NOTE Store holds ColumnChunkPageWriter(s) each for a field
     ColumnChunkPageWriteStore columnChunkPageWriteStore = new ColumnChunkPageWriteStore(
         compressor,
         schema,
@@ -114,10 +121,12 @@ class InternalParquetRecordWriter<T> {
         props.getPageWriteChecksumEnabled(),
         fileEncryptor,
         rowGroupOrdinal);
+    // NOTE these 2 stores are just IDENTICAL
     pageStore = columnChunkPageWriteStore;
     bloomFilterWriteStore = columnChunkPageWriteStore;
 
     columnStore = props.newColumnWriteStore(schema, pageStore, bloomFilterWriteStore);
+    // NOTE prepare column DL/RL, type definitions, name, index, parental hierarchy
     MessageColumnIO columnIO = new ColumnIOFactory(validating).getColumnIO(schema);
     this.recordConsumer = columnIO.getRecordWriter(columnStore);
     writeSupport.prepareForWrite(recordConsumer);
@@ -125,6 +134,8 @@ class InternalParquetRecordWriter<T> {
 
   public void close() throws IOException, InterruptedException {
     if (!closed) {
+      long lastFlushData = System.nanoTime();
+
       flushRowGroupToStore();
       FinalizedWriteContext finalWriteContext = writeSupport.finalizeWrite();
       Map<String, String> finalMetadata = new HashMap<String, String>(extraMetaData);
@@ -133,15 +144,34 @@ class InternalParquetRecordWriter<T> {
         finalMetadata.put(ParquetWriter.OBJECT_MODEL_NAME_PROP, modelName);
       }
       finalMetadata.putAll(finalWriteContext.getExtraMetaData());
+
+      dataSize = parquetFileWriter.out.getPos();
+
+      parquetFileWriter.out.force();
+      flushDataTime += System.nanoTime() - lastFlushData;
+
       parquetFileWriter.end(finalMetadata);
+      flushIndexTime = parquetFileWriter.reportFlushIndextime();
+      indexSize = parquetFileWriter.out.getPos() - dataSize;
+
       closed = true;
     }
   }
 
+  long flushDataTime, flushIndexTime, dataSize, indexSize;
+
+  public void report(BufferedWriter bw) throws IOException {
+    bw.write(String.format("DataFlushTime: %d, IndexFlushTIme: %d\n", flushDataTime/1000000, flushIndexTime/1000000));
+    bw.write(String.format("DataSize: %d, IndexSize: %d\n", dataSize, indexSize));
+  }
+
   public void write(T value) throws IOException, InterruptedException {
+    // NOTE directly called by ParquetWriter
+    long flushData = System.nanoTime();
     writeSupport.write(value);
     ++recordCount;
     checkBlockSizeReached();
+    flushDataTime += System.nanoTime() - flushData;
   }
 
   /**
@@ -152,6 +182,7 @@ class InternalParquetRecordWriter<T> {
   }
 
   private void checkBlockSizeReached() throws IOException {
+    // NOTE just isomorphic to size check as TsFile write process
     if (recordCount
         >= recordCountForNextMemCheck) { // checking the memory size is relatively expensive, so let's not do it
       // for every record.
