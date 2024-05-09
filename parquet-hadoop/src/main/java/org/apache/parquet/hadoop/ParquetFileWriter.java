@@ -1444,16 +1444,31 @@ public class ParquetFileWriter {
     flushIndexTime = System.nanoTime();
     serializeColumnIndexes(columnIndexes, blocks, out, fileEncryptor);
     serializeOffsetIndexes(offsetIndexes, blocks, out, fileEncryptor);
+
+    out.force();
+    flushIndexTime = System.nanoTime() - flushIndexTime;
+    indexEndPos = out.getPos();
+
     serializeBloomFilters(bloomFilters, blocks, out, fileEncryptor);
     LOG.debug("{}: end", out.getPos());
     this.footer = new ParquetMetadata(new FileMetaData(schema, extraMetaData, Version.FULL_VERSION), blocks);
+
+    out.force();
+    long footStartPos = out.getPos();
+    long flushFooterStart = System.nanoTime();
     serializeFooter(footer, out, fileEncryptor, metadataConverter);
     out.force();
-    flushIndexTime = System.nanoTime() - flushIndexTime;
+    flushIndexTime += System.nanoTime() - flushFooterStart;
+    footSize = out.getPos() - footStartPos;
+
     out.close();
   }
 
-  private long flushIndexTime;
+  private long flushIndexTime, indexEndPos, footSize;
+
+  public long getFootSize() {return footSize;}
+
+  public long reportIndexEndPos() {return indexEndPos;}
 
   public long reportFlushIndextime() {
     return flushIndexTime;

@@ -5,6 +5,7 @@ import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.LargeVarCharVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowFileReader;
@@ -16,7 +17,9 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
@@ -28,6 +31,8 @@ import java.text.SimpleDateFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Stream;
@@ -36,12 +41,9 @@ public class TSBSLoader {
   private static final Logger logger = LoggerFactory.getLogger(TSBSLoader.class);
   public static final boolean DEBUG = false;
 
-  public static String DIR = "F:\\0006DataSets\\TSBS";
-  public static String ARROW_DIR = "F:\\0006DataSets\\Arrows\\";
-
   private final BufferAllocator allocator;
   private VectorSchemaRoot root;
-  public VarCharVector idVector;
+  public LargeVarCharVector idVector;
   public BigIntVector timestampVector;
   public Float8Vector latVec;
   public Float8Vector lonVec;
@@ -58,7 +60,7 @@ public class TSBSLoader {
     // 定义 Schema
     Schema schema = new Schema(Arrays.asList(
         // id: fleet.name.driver
-        Field.nullable("id", FieldType.nullable(Types.MinorType.VARCHAR.getType()).getType()),
+        Field.nullable("id", FieldType.nullable(Types.MinorType.LARGEVARCHAR.getType()).getType()),
         Field.nullable("timestamp", FieldType.nullable(Types.MinorType.BIGINT.getType()).getType()),
         Field.nullable("lat", FieldType.nullable(Types.MinorType.FLOAT8.getType()).getType()),
         Field.nullable("lon", FieldType.nullable(Types.MinorType.FLOAT8.getType()).getType()),
@@ -68,7 +70,7 @@ public class TSBSLoader {
 
     this.root = VectorSchemaRoot.create(schema, allocator);
 
-    this.idVector = (VarCharVector) root.getVector("id");
+    this.idVector = (LargeVarCharVector) root.getVector("id");
     this.timestampVector = (BigIntVector) root.getVector("timestamp");
     this.latVec = (Float8Vector) root.getVector("lat");
     this.lonVec = (Float8Vector) root.getVector("lon");
@@ -85,7 +87,7 @@ public class TSBSLoader {
   }
 
   String[] p1,p2,p3;
-  private static long fileCount = 0;
+  private static long fileCount = 0, collectedPoints = 0L;
   private static final DateTimeFormatter GEOLIFE_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd,HH:mm:ss");
   public void processDataFile(Path path, long limit) {
     if (DEBUG) {
@@ -99,8 +101,15 @@ public class TSBSLoader {
 
     try (Stream<String> lines = Files.lines(path).skip(4)) {
       lines.limit(limit).forEach(line -> {
+
+        if (collectedPoints % 1_048_576 == 0) {
+          System.out.println(collectedPoints);
+        }
+
         String[] parts = line.split(",");
-        if (parts[0].equals("diagnostics")) {
+        if (collectedPoints > Integer.MAX_VALUE / 8) {
+
+        } else if (parts[0].equals("diagnostics")) {
           curDev = null;
         } else if (parts[0].equals("tags")) {
 
@@ -132,7 +141,8 @@ public class TSBSLoader {
                     parseDoubleWithNull(parts[2]),
                     parseDoubleWithNull(parts[3]),
                     parseDoubleWithNull(parts[4])
-            ));
+                ));
+            collectedPoints++;
           }
         }
       });
@@ -230,16 +240,16 @@ public class TSBSLoader {
     }
   }
 
-  public static TSBSLoader deserialize(String fileName) throws IOException{
-    String filePath = ARROW_DIR + fileName;
+  public static TSBSLoader deserialize(String path, String fileName) throws IOException {
+    String filePath = path + fileName;
     TSBSLoader loader = new TSBSLoader();
-    RootAllocator allocator = new RootAllocator(4 * 1024 * 1024 * 1024L);
+    RootAllocator allocator = new RootAllocator(16 * 1024 * 1024 * 1024L);
     try (FileInputStream fis = new FileInputStream(filePath);
          FileChannel channel = fis.getChannel();
          ArrowFileReader reader = new ArrowFileReader(channel, allocator)) {
       VectorSchemaRoot readRoot = reader.getVectorSchemaRoot();
 
-      VarCharVector idVector = (VarCharVector) readRoot.getVector("id");
+      LargeVarCharVector idVector = (LargeVarCharVector) readRoot.getVector("id");
       BigIntVector timestampVector = (BigIntVector) readRoot.getVector("timestamp");
       Float8Vector latVec = (Float8Vector) readRoot.getVector("lat");
       Float8Vector lonVec = (Float8Vector) readRoot.getVector("lon");
@@ -267,6 +277,10 @@ public class TSBSLoader {
     }
   }
 
+  public static TSBSLoader deserialize(String fileName) throws IOException{
+    return deserialize(ARROW_DIR, fileName);
+  }
+
   public static void setWithNull(Float8Vector src, Float8Vector dst, int index) {
     if (src.isNull(index)) {
       dst.setNull(index);
@@ -274,6 +288,9 @@ public class TSBSLoader {
       dst.setSafe(index, src.get(index));
     }
   }
+
+  public static String DIR = "F:\\0006DataSets\\TSBS2";
+  public static String ARROW_DIR = "F:\\0006DataSets\\Arrows\\";
 
   public static void main(String[] args) throws IOException {
     TSBSLoader loader = new TSBSLoader();

@@ -152,7 +152,7 @@ class InternalParquetRecordWriter<T> {
 
       parquetFileWriter.end(finalMetadata);
       flushIndexTime = parquetFileWriter.reportFlushIndextime();
-      indexSize = parquetFileWriter.out.getPos() - dataSize;
+      indexSize = parquetFileWriter.reportIndexEndPos() - dataSize + parquetFileWriter.getFootSize();
 
       closed = true;
     }

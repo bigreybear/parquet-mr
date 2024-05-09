@@ -127,14 +127,14 @@ public class TDriveLoader {
     }
   }
 
-  public static void checkConditions(VarCharVector idVector,
-                                     BigIntVector bigIntVector,
-                                     Float8Vector float8Vector,
-                                     String sensor) {
-    ConditionGenerator conditionGenerator = new ConditionGenerator();
-    conditionGenerator.sampleAll(idVector, bigIntVector, float8Vector, sensor);
-    System.out.println("finish");
-  }
+  // public static void checkConditions(VarCharVector idVector,
+  //                                    BigIntVector bigIntVector,
+  //                                    Float8Vector float8Vector,
+  //                                    String sensor) {
+  //   ConditionGenerator conditionGenerator = new ConditionGenerator();
+  //   conditionGenerator.sampleAll(idVector, bigIntVector, float8Vector, sensor);
+  //   System.out.println("finish");
+  // }
 
   public static TDriveLoader deserialize(String fileName) throws IOException{
     String filePath = ARROW_DIR + fileName;
@@ -170,12 +170,12 @@ public class TDriveLoader {
   public static void main(String[] args) throws IOException {
     TDriveLoader loader = new TDriveLoader();
     loader.load(20);
-    checkConditions(
-        loader.idVector,
-        loader.timestampVector,
-        loader.latitudeVector,
-        "lat"
-    );
+    // checkConditions(
+    //     loader.idVector,
+    //     loader.timestampVector,
+    //     loader.latitudeVector,
+    //     "lat"
+    // );
 
     // loader.check(2000);
     loader.close();

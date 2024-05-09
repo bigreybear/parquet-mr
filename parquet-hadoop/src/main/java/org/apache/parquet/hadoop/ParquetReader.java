@@ -28,6 +28,7 @@ import java.util.Objects;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.HadoopReadOptions;
 import org.apache.parquet.ParquetReadOptions;
@@ -384,6 +385,12 @@ public class ParquetReader<T> implements Closeable {
 
       if (path != null) {
         Configuration hadoopConf = ConfigurationUtil.createHadoopConfiguration(conf);
+        hadoopConf.set("fs.hdfs.impl",
+            org.apache.hadoop.hdfs.DistributedFileSystem.class.getName()
+        );
+        hadoopConf.set("fs.file.impl",
+            org.apache.hadoop.fs.LocalFileSystem.class.getName()
+        );
         FileSystem fs = path.getFileSystem(hadoopConf);
         FileStatus stat = fs.getFileStatus(path);
 

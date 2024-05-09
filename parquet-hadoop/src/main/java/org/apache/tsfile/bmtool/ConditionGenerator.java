@@ -2,6 +2,7 @@ package org.apache.tsfile.bmtool;
 
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.LargeVarCharVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.parquet.bmtool.DataSets;
 import java.io.FileInputStream;
@@ -71,15 +72,26 @@ public class ConditionGenerator implements Serializable {
     }
   }
 
+  public class CrossRange extends CompCondition implements Serializable {
+    public String cSeries; // c for crossed, inherited series to be filtered
+    public double v1, v2;
+    public CrossRange(String filtered, String crossSelected, double d1, double d2) {
+      series = filtered; cSeries = crossSelected;
+      v1 = Math.min(d1, d2);
+      v2 = Math.max(d1, d2);
+    }
+  }
+
   public Set<String> singleSeries = new HashSet<>();
   public Set<String> alignedDevices = new HashSet<>();
   public Set<TimeRange> timeRanges = new HashSet<>();
   public Set<DoubleRange> doubleRanges = new HashSet<>();
   public Set<MixedRange> mixedRanges = new HashSet<>();
+  public Set<CrossRange> crossRanges = new HashSet<>();
 
   public ConditionGenerator() {}
 
-  private void sampleSeries(VarCharVector idv, String sensor) {
+  private void sampleSeries(LargeVarCharVector idv, String sensor) {
     int total = idv.getValueCount();
     int span = total/CONDITION_CARD;
     int shift = (int) (0.6 * span);
@@ -91,7 +103,7 @@ public class ConditionGenerator implements Serializable {
     }
   }
 
-  private void sampleAligned(VarCharVector idv) {
+  private void sampleAligned(LargeVarCharVector idv) {
     int total = idv.getValueCount();
     int span = total/CONDITION_CARD;
     int shift = (int) (0.2 * span);
@@ -103,7 +115,7 @@ public class ConditionGenerator implements Serializable {
     }
   }
 
-  private void sampleTimeRanges(VarCharVector idVector, BigIntVector tVector, String sensor) {
+  private void sampleTimeRanges(LargeVarCharVector idVector, BigIntVector tVector, String sensor) {
     int total = idVector.getValueCount();
     int span = total/CONDITION_CARD;
     int shift = (int) (0.2 * span);
@@ -140,7 +152,7 @@ public class ConditionGenerator implements Serializable {
     }
   }
 
-  private void sampleDoubleRanges(VarCharVector idVector, Float8Vector tVector, String sensor) {
+  private void sampleDoubleRanges(LargeVarCharVector idVector, Float8Vector tVector, String sensor) {
     int total = idVector.getValueCount();
     int span = total/CONDITION_CARD;
     int shift = (int) (0.1 * span);
@@ -169,7 +181,9 @@ public class ConditionGenerator implements Serializable {
 
       String series = dev + "." + sensor;
 
-      if (tVector.get(idx + idxOffset) == tVector.get(idx + idxOffset + steps)) {
+      if (tVector.isNull(idx+idxOffset)
+          || tVector.isNull(idx+idxOffset+steps)
+          || tVector.get(idx + idxOffset) == tVector.get(idx + idxOffset + steps)) {
         continue;
       }
       doubleRanges.add(
@@ -181,10 +195,57 @@ public class ConditionGenerator implements Serializable {
     }
   }
 
-  private void sampleMixedRanges(VarCharVector idVector,
-                                BigIntVector bigIntVector,
-                                Float8Vector float8Vector,
-                                String sensor) {
+  private void sampleCrossRanges(LargeVarCharVector idVector,
+                                 Float8Vector tVector,
+                                 String filtered,
+                                 String crossSelected) {
+    int total = idVector.getValueCount();
+    int span = total/CONDITION_CARD;
+    int shift = (int) (0.13 * span);
+
+    String dev;
+    for (int idx = shift; idx < total; idx += span) {
+      dev = new String(idVector.get(idx), StandardCharsets.UTF_8);
+      int steps = 1;
+      int idxOffset = 0;
+      while (steps < RANGE_SPAN + idxOffset) {
+        String ndev = new String(idVector.get(idx + steps), StandardCharsets.UTF_8);
+        if (!ndev.equals(dev)) {
+          // if occurred last row of one device, examine next device as condition with offset
+          if (steps == 1) {
+            dev = ndev;
+            // now to measure from here, limit of steps expands with offset as well
+            idxOffset = steps;
+            steps ++;
+            continue;
+          }
+          steps --;
+          break;
+        }
+        steps++;
+      }
+
+      String series = dev + "." + filtered;
+
+      if (tVector.isNull(idx+idxOffset)
+          || tVector.isNull(idx+idxOffset+steps)
+          || tVector.get(idx + idxOffset) == tVector.get(idx + idxOffset + steps)) {
+        continue;
+      }
+      crossRanges.add(
+          new CrossRange(
+              series,
+              dev + "." + crossSelected,
+              tVector.get(idx + idxOffset),
+              tVector.get(idx + idxOffset + steps))
+      );
+    }
+  }
+
+  private void sampleMixedRanges(LargeVarCharVector idVector,
+                                 BigIntVector bigIntVector,
+                                 Float8Vector float8Vector,
+                                 String sensor) {
     int total = idVector.getValueCount();
     int span = total/CONDITION_CARD;
     int shift = (int) (0.7 * span);
@@ -223,15 +284,17 @@ public class ConditionGenerator implements Serializable {
     }
   }
 
-  public void sampleAll(VarCharVector idVector,
+  public void sampleAll(LargeVarCharVector idVector,
                         BigIntVector bigIntVector,
                         Float8Vector float8Vector,
-                        String sensor) {
+                        String sensor,
+                        String crossSensor) {
     sampleAligned(idVector);
     sampleSeries(idVector, sensor);
     sampleTimeRanges(idVector, bigIntVector, sensor);
     sampleDoubleRanges(idVector, float8Vector, sensor);
     sampleMixedRanges(idVector, bigIntVector, float8Vector, sensor);
+    sampleCrossRanges(idVector, float8Vector, sensor, crossSensor);
   }
 
   public static void serialize(ConditionGenerator cg, String path) throws IOException {
@@ -248,15 +311,18 @@ public class ConditionGenerator implements Serializable {
     }
   }
 
+
   public static ConditionGenerator getConditionsByDataSets(DataSets dataset) throws IOException, ClassNotFoundException {
     return ConditionGenerator.deserialize(dataset.getConditionBinPath());
   }
 
   public static void main(String[] args) throws IOException, ClassNotFoundException {
     // generateTDriveConditions();
-    ConditionGenerator cg = ConditionGenerator.deserialize(DataSets.GeoLife.getConditionBinPath());
-    // generateGeoLifeConditions();
+    // generateREDDConditions();
 
+    // generateGeoLifeConditions();
+    // generateTSBSConditions();
+    ConditionGenerator cg = ConditionGenerator.deserialize(DataSets.TSBS.getConditionBinPath());
     System.out.println("sc?");
   }
 

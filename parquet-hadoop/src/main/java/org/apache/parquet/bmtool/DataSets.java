@@ -40,7 +40,7 @@ public enum DataSets { // and its sensors
         + "} ");
   }
 
-  // NOTE multiple-part device id
+  // Note(zx) multiple-part device id
   private static MessageType createREDDSchema() {
     return parseMessageType("message REDD { "
         + "required binary building;"
@@ -117,11 +117,6 @@ public enum DataSets { // and its sensors
     switch (this) {
       case GeoLife:
       case TDrive:
-        return parseMessageType("message TDrive { "
-            + "required binary deviceID;"
-            + "required int64 timestamp;"
-            + "required double " + sensor + "; "
-            + "} ");
       case REDD:
         return getAlignedSchema();
       case TSBS:
@@ -137,6 +132,32 @@ public enum DataSets { // and its sensors
     }
   }
 
+  public MessageType getCrossSchema(String sensor, String sensor2) {
+    switch (this) {
+      case GeoLife:
+      case TDrive:
+        return parseMessageType("message TDrive { "
+            + "required binary deviceID;"
+            + "required int64 timestamp;"
+            + "required double " + sensor + "; "
+            + "required double " + sensor2 + "; "
+            + "} ");
+      case REDD:
+        return getAlignedSchema();
+      case TSBS:
+        return parseMessageType("message TSBS { "
+            + "required binary name;"
+            + "required binary fleet;"
+            + "required binary driver;"
+            + "required int64 timestamp;"
+            + "optional double " + sensor + ";"
+            + "optional double " + sensor2 + ";"
+            + "} ");
+      default:
+        return null;
+    }
+  }
+
   // just wrap predicate below
   public FilterCompat.Filter getDeviceEquation(String device) {
     switch (this) {
@@ -145,6 +166,21 @@ public enum DataSets { // and its sensors
       case GeoLife:
       case TDrive:
         return FilterCompat.get(this.getDevicePredicate(device));
+      default:
+        return null;
+    }
+  }
+
+  // just wrap predicate below
+  public String getCorssColumn() {
+    switch (this) {
+      case TSBS:
+        return "lat";
+      case REDD:
+        return "elec";
+      case GeoLife:
+      case TDrive:
+        return "lon";
       default:
         return null;
     }
@@ -198,7 +234,7 @@ public enum DataSets { // and its sensors
   public String getTargetFile() {
     switch (this) {
       case GeoLife:
-        return "PAQ_FILE_GeoLife_20240313032719_UNCOMPRESSED_.parquet";
+        return "PAQ_FILE_GeoLife_20240315143122_SNAPPY_.parquet";
       case TDrive:
         return "PAQ_FILE_TDrive_20240313032447_UNCOMPRESSED_.parquet";
       case REDD:
@@ -238,5 +274,6 @@ public enum DataSets { // and its sensors
   }
 
   public static void main(String[] args) {
+    System.out.println(createTSBSSchema());
   }
 }

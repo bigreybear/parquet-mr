@@ -22,7 +22,7 @@ import java.util.List;
 
 public class BMReader {
 
-  public static String DST_DIR = "F:\\0006DataSets\\Results\\";
+  public static String DST_DIR = "F:\\0006DataSets\\EXP5-3\\";
   public static String DATE_STR = java.time.format.DateTimeFormatter
       .ofPattern("yyyyMMddHHmmss")
       .format(java.time.LocalDateTime.now());
@@ -110,6 +110,26 @@ public class BMReader {
       return expressions;
     }
 
+    public static List<FilterCompat.Filter> crossExpression(ConditionGenerator cg) {
+      List<FilterCompat.Filter> expressions = new ArrayList<>();
+      for (ConditionGenerator.CrossRange cr: cg.crossRanges) {
+        String[] nodes = cr.series.split("\\.");
+        String sensorCol = nodes[nodes.length - 1];
+        FilterCompat.Filter vFilter =
+            FilterCompat.get(
+                FilterApi.and(
+                    DATA_SET.getDevicePredicate(getDeviceFromNodes(nodes)),
+                    FilterApi.and(
+                        FilterApi.gtEq(FilterApi.doubleColumn(sensorCol), cr.v1),
+                        FilterApi.ltEq(FilterApi.doubleColumn(sensorCol), cr.v2)
+                    )
+                )
+            );
+        expressions.add(vFilter);
+      }
+      return expressions;
+    }
+
     public static List<FilterCompat.Filter> mixedExpression(ConditionGenerator cg) {
       List<FilterCompat.Filter> expressions = new ArrayList<>();
       for (ConditionGenerator.MixedRange mr : cg.mixedRanges) {
@@ -142,11 +162,13 @@ public class BMReader {
     Group record;
     Stopwatch.zero();
     for (FilterCompat.Filter e : exps) {
+      int s20 = 20;
       builder.withFilter(e);
       reader = builder.build();
       Stopwatch.start();
-      while ((record = reader.read()) != null) {
+      while ((record = reader.read()) != null && s20 > 0) {
         cnt++;
+        s20--;
       }
       Stopwatch.stop();
       reader.close();
@@ -198,6 +220,13 @@ public class BMReader {
         );
         queryExpressions = QueryBuilder.mixedExpression(cg);
         break;
+      case CrossFilter:
+        configuration.set(
+            ReadSupport.PARQUET_READ_SCHEMA,
+            DATA_SET.getCrossSchema(DATA_SET.comparingColumn, DATA_SET.getCorssColumn()).toString()
+        );
+        queryExpressions = QueryBuilder.crossExpression(cg);
+        break;
       default:
         queryExpressions = null;
     }
@@ -222,11 +251,11 @@ public class BMReader {
 
   public static void formattedLog(String ds, int queryType, long latency, int rowCnt) throws IOException {
     logger.write(String.format("%s\t%s\t%s\t%d\t%d\t%s",
-        ds, QueryType.values()[queryType], DATE_STR, latency, rowCnt, DATA_SET.getTargetFile()));
+        ds, QueryType.values()[queryType], DATE_STR, latency/1000000, rowCnt, paqFile.getName()));
     logger.newLine();
   }
 
-  public static DataSets DATA_SET = DataSets.GeoLife; // datasets using distinct schemas
+  public static DataSets DATA_SET = DataSets.TSBS; // datasets using distinct schemas
   public static String LOG_PATH = DST_DIR + "PAQ_FILE_Query_Results.log";
   public static String FILE_PATH = DST_DIR + DATA_SET.getTargetFile();
 
@@ -234,10 +263,22 @@ public class BMReader {
   public static long READ_MAX = 1000;
 
   public static void main(String[] args) throws IOException, ClassNotFoundException {
+    int queryType = 0;
+    FILE_PATH = DST_DIR + "PAQ_FILE__TSBS-5.3.2-length-1_.parquet";
+    DATA_SET = DataSets.TSBS;
+    if (args.length >= 3) {
+      FILE_PATH = DST_DIR + args[0];
+      DATA_SET = DataSets.valueOf(args[1]);
+      queryType = Integer.parseInt(args[2]);
+    } else {
+      // System.out.println("Not enough arguments.");
+      // return;
+    }
+
     init();
     ConditionGenerator cg = ConditionGenerator.getConditionsByDataSets(DATA_SET);
     ParquetReader.Builder builder = ParquetReader.builder(new GroupReadSupport(), new Path(FILE_PATH));
-    bmQuery(builder, cg, 4, DATA_SET.ordinal());
+    bmQuery(builder, cg, queryType, DATA_SET.ordinal());
     logger.close();
 
     // PlainParquetConfiguration configuration = new PlainParquetConfiguration();
@@ -271,6 +312,7 @@ public class BMReader {
     AlignedRaw,
     TimeFilter,
     valueFilter,
-    MixedFilter
+    MixedFilter,
+    CrossFilter
   }
 }

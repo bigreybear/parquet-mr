@@ -1,9 +1,15 @@
 package org.apache.parquet.bmtool;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.yarn.webapp.hamlet2.Hamlet;
 import org.apache.parquet.conf.ParquetConfiguration;
 import org.apache.parquet.conf.PlainParquetConfiguration;
 import org.apache.parquet.example.data.Group;
@@ -12,22 +18,11 @@ import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.hadoop.example.ExampleParquetWriter;
 import org.apache.parquet.hadoop.example.GroupReadSupport;
-import org.apache.parquet.hadoop.example.GroupWriteSupport;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.io.LocalOutputFile;
-import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.schema.MessageType;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
 
-import static org.apache.parquet.schema.MessageTypeParser.parseMessageType;
-
-public class BMWriter {
+public class BMWriter53 {
 
   public static class DataSetsProfile {
     public static int deviceNum = 0;
@@ -37,7 +32,7 @@ public class BMWriter {
 
   public static boolean TO_PROFILE = true;
 
-  public static String DST_DIR = "F:\\0006DataSets\\Results\\";
+  public static String DST_DIR = "F:\\0006DataSets\\EXP5-3\\";
   public static String DATE_STR = java.time.format.DateTimeFormatter
       .ofPattern("yyyyMMddHHmmss")
       .format(java.time.LocalDateTime.now());
@@ -76,6 +71,7 @@ public class BMWriter {
     logger.newLine();
   }
 
+
   public static void bmTSBS() throws IOException {
     writer = ExampleParquetWriter.builder(new LocalOutputFile(parqFile.toPath()))
         .withConf(plainParquetConf).withType(schema)
@@ -86,7 +82,7 @@ public class BMWriter {
         .withCompressionCodec(compressionCodecName)
         .build();
 
-    TSBSLoader loader = TSBSLoader.deserialize(CUR_DATA.getArrowFile());
+    TSBSLoader loader = TSBSLoader.deserialize("F:\\0006DataSets\\Arrows-5-3\\", E53_NAME);
     SimpleGroupFactory f = new SimpleGroupFactory(schema);
 
     String preDev = new String(loader.idVector.get(0), StandardCharsets.UTF_8);
@@ -391,7 +387,7 @@ public class BMWriter {
   private static void commentOnName(String comment) {
     if (comment != null) {
       NAME_COMMENT = "_" + comment + "_";
-      FILE_PATH = DST_DIR + "PAQ_FILE_" + CUR_DATA + "_" + DATE_STR + NAME_COMMENT + ".parquet";
+      FILE_PATH = DST_DIR + "PAQ_FILE_" + NAME_COMMENT + ".parquet";
       // LOG_PATH = DST_DIR + "PAQ_FILE" + DATE_STR + NAME_COMMENT + ".log";
     }
   }
@@ -402,6 +398,7 @@ public class BMWriter {
   public static CompressionCodecName compressionCodecName = CompressionCodecName.SNAPPY;
   public static String NAME_COMMENT = "_" + compressionCodecName + "_";
   public static DataSets CUR_DATA = DataSets.TSBS;
+  public static String E53_NAME = "TSBS-5.3.2-scale-4";
   public static void main(String[] args) throws IOException {
     // assign default
     compressionCodecName = CompressionCodecName.SNAPPY;
@@ -411,7 +408,7 @@ public class BMWriter {
       CUR_DATA = DataSets.valueOf(args[0]);
     }
 
-    commentOnName(compressionCodecName.toString());
+    commentOnName(E53_NAME);
     init();
     long record = System.currentTimeMillis();
     // write as needed
